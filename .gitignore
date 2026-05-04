@@ -5,3 +5,8 @@ nvim
 
 spell/
 lazy-lock.json
+.DS_Store
+.idea/
+
+# Generated snippet symlinks (managed by Text Expand repo's make install)
+lua/snippets/
