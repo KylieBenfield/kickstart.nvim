@@ -1,5 +1,19 @@
--- You can add your own plugins here or in other files in this directory!
---  I promise not to create any merge conflicts in this directory :)
---
--- See the kickstart.nvim README for more information
-return {}
+return {
+  {
+    'kdheepak/lazygit.nvim',
+    cmd = { 'LazyGit', 'LazyGitCurrentFile', 'LazyGitFilter' },
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    keys = {
+      { '<leader>gg', '<cmd>LazyGit<cr>', desc = 'LazyGit' },
+    },
+  },
+
+  {
+    'coder/claudecode.nvim',
+    keys = {
+      { '<leader>ac', '<cmd>ClaudeCode<cr>', desc = 'Toggle Claude Code' },
+      { '<leader>as', '<cmd>ClaudeCodeSend<cr>', desc = 'Send to Claude', mode = 'v' },
+    },
+    opts = {},
+  },
+}

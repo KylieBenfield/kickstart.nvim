@@ -87,8 +87,8 @@ P.S. You can delete this when you're done too. It's your config now! :)
 -- Set <space> as the leader key
 -- See `:help mapleader`
 --  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
-vim.g.mapleader = ','
-vim.g.maplocalleader = ','
+vim.g.mapleader = ' '
+vim.g.maplocalleader = ' '
 
 -- Set to true if you have a Nerd Font installed and selected in the terminal
 vim.g.have_nerd_font = true
@@ -198,8 +198,6 @@ vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left wind
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
-
--- vim.keymap.set('n', '<leader-t>', ':vs | terminal npm run test')
 
 -- NOTE: Some terminals have colliding keymaps or are not able to send distinct keycodes
 -- vim.keymap.set("n", "<C-S-h>", "<C-w>H", { desc = "Move window to the left" })
@@ -353,10 +351,6 @@ require('lazy').setup({
     },
   },
 
-  {
-    'brenoprata10/nvim-highlight-colors',
-  },
-
   -- NOTE: Plugins can specify dependencies.
   --
   -- The dependencies are proper plugin specifications as well - anything
@@ -448,7 +442,7 @@ require('lazy').setup({
         -- You can pass additional configuration to Telescope to change the theme, layout, etc.
         builtin.current_buffer_fuzzy_find(require('telescope.themes').get_dropdown {
           winblend = 10,
-          previewer = true,
+          previewer = false,
         })
       end, { desc = '[/] Fuzzily search in current buffer' })
 
@@ -661,93 +655,58 @@ require('lazy').setup({
         },
       }
 
-      -- Color Previews
-      -- Ensure termguicolors is enabled if not already
-      vim.opt.termguicolors = true
-
-      require('nvim-highlight-colors').setup {}
-
-      -- Markdown
-      require('render-markdown').setup { latex = { enabled = false } }
-
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
       --  When you add blink.cmp, luasnip, etc. Neovim now has *more* capabilities.
       --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
       local capabilities = require('blink.cmp').get_lsp_capabilities()
 
-      -- Enable the following language servers
-      --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
-      --
-      --  Add any additional override configuration in the following tables. Available keys are:
-      --  - cmd (table): Override the default command used to start the server
-      --  - filetypes (table): Override the default list of associated filetypes for the server
-      --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
-      --  - settings (table): Override the default settings passed when initializing the server.
-      --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      -- Configure LSP servers using the native vim.lsp.config API (Neovim 0.11+)
+      -- Servers listed here will be auto-installed by Mason and auto-enabled by mason-lspconfig.
       local servers = {
-        -- clangd = {},
-        -- gopls = {},
-        -- pyright = {},
-        -- rust_analyzer = {},
-        -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
-        --
-        -- Some languages (like typescript) have entire language plugins that can be useful:
-        --    https://github.com/pmizio/typescript-tools.nvim
-        --
-        -- But for many setups, the LSP (`ts_ls`) will work just fine
-        -- ts_ls = {},
-        --
+        'clangd',         -- C/C++
+        'ts_ls',          -- TypeScript/JavaScript
+        'pyright',        -- Python
+        'rust_analyzer',  -- Rust
+        'omnisharp',      -- C#
+        'ruby_lsp',       -- Ruby
+        'cssls',          -- CSS
+        'html',           -- HTML
+        'jsonls',         -- JSON
+        'lua_ls',         -- Lua
+        'astro',          -- Astro
+        'tailwindcss',    -- Tailwind CSS
+      }
 
-        lua_ls = {
-          -- cmd = { ... },
-          -- filetypes = { ... },
-          -- capabilities = {},
-          settings = {
-            Lua = {
-              completion = {
-                callSnippet = 'Replace',
-              },
-              -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
+      -- Apply shared capabilities to all servers
+      vim.lsp.config('*', {
+        capabilities = capabilities,
+      })
+
+      -- Server-specific overrides
+      vim.lsp.config('lua_ls', {
+        settings = {
+          Lua = {
+            completion = {
+              callSnippet = 'Replace',
             },
           },
         },
-      }
+      })
 
-      -- Ensure the servers and tools above are installed
-      --
-      -- To check the current status of installed tools and/or manually install
-      -- other tools, you can run
-      --    :Mason
-      --
-      -- You can press `g?` for help in this menu.
-      --
-      -- `mason` had to be setup earlier: to configure its options see the
-      -- `dependencies` table for `nvim-lspconfig` above.
-      --
-      -- You can add other tools here that you want Mason to install
-      -- for you, so that they are available from within Neovim.
-      local ensure_installed = vim.tbl_keys(servers or {})
-      vim.list_extend(ensure_installed, {
+      -- System-installed LSPs (not managed by Mason)
+      vim.lsp.enable('gdscript')  -- Godot's built-in LSP
+      vim.lsp.enable('cmake')     -- cmake-language-server via system package
+
+      -- Ensure the servers and tools above are installed via Mason
+      --  To check status or manually install: :Mason
+      local ensure_installed = vim.list_extend(vim.deepcopy(servers), {
         'stylua', -- Used to format Lua code
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
-      require('mason-lspconfig').setup {
-        ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
-        automatic_installation = true,
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
-            server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
-          end,
-        },
-      }
+      -- mason-lspconfig auto-enables installed servers via vim.lsp.enable()
+      require('mason-lspconfig').setup()
     end,
   },
 
@@ -771,7 +730,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
+        local disable_filetypes = { c = true, cpp = true, cs = true, gdscript = true }
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
         else
@@ -784,53 +743,19 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        python = { 'isort', 'black' },
-        markdown = { 'markdownlint' },
+        -- python = { "isort", "black" },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
-        typescript = { 'prettierd', 'prettier', stop_after_first = true },
-        typescriptreact = { 'prettierd', 'prettier', stop_after_first = true },
-        javascript = { 'prettierd', 'prettier', stop_after_first = true },
-        javascriptreact = { 'prettierd', 'prettier', stop_after_first = true },
+        -- javascript = { "prettierd", "prettier", stop_after_first = true },
       },
     },
-  },
-
-  -- Testing Support
-  -- {
-  --   'nvim-neotest/neotest',
-  --   dependencies = {
-  --     'nvim-neotest/nvim-nio',
-  --     'nvim-lua/plenary.nvim',
-  --     'antoinemadec/FixCursorHold.nvim',
-  --     'nvim-treesitter/nvim-treesitter',
-  --     'marilari88/neotest-vitest',
-  --     'nvim-neotest/neotest-jest',
-  --     'thenbe/neotest-playwright',
-  --     'nvim-telescope/telescope.nvim',
-  --   },
-  --   opts = {
-  --     adapters = {
-  --       ['neotest-vitest'] = {},
-  --       ['neotest-jest'] = {},
-  --       ['neotest-playwright'] = {
-  --         persist_project_selection = true,
-  --         enable_dynamic_test_discovery = true,
-  --       },
-  --     },
-  --   },
-  -- },
-
-  {
-    'pmizio/typescript-tools.nvim',
-    dependencies = { 'nvim-lua/plenary.nvim', 'neovim/nvim-lspconfig' },
-    opts = {},
   },
 
   { -- Autocompletion
     'saghen/blink.cmp',
     event = 'VimEnter',
     version = '1.*',
+    build = 'cargo build --release',
     dependencies = {
       -- Snippet Engine
       {
@@ -863,10 +788,14 @@ require('lazy').setup({
             paths = vim.fn.stdpath 'config' .. '/lua/snippets',
           }
           vim.keymap.set({ 'i', 's' }, '<C-l>', function()
-            if luasnip.choice_active() then luasnip.change_choice(1) end
+            if luasnip.choice_active() then
+              luasnip.change_choice(1)
+            end
           end, { desc = 'LuaSnip: next choice' })
           vim.keymap.set({ 'i', 's' }, '<C-h>', function()
-            if luasnip.choice_active() then luasnip.change_choice(-1) end
+            if luasnip.choice_active() then
+              luasnip.change_choice(-1)
+            end
           end, { desc = 'LuaSnip: prev choice' })
           vim.keymap.set('i', '<C-s>', function()
             if luasnip.choice_active() then
@@ -900,7 +829,7 @@ require('lazy').setup({
         -- <c-n>/<c-p> or <up>/<down>: Select next/previous item
         -- <c-e>: Hide menu
         -- <c-k>: Toggle signature help
-
+        --
         -- See :h blink-cmp-config-keymap for defining your own keymap
         preset = 'super-tab',
 
@@ -917,7 +846,7 @@ require('lazy').setup({
       completion = {
         -- By default, you may press `<c-space>` to show the documentation.
         -- Optionally, set `auto_show = true` to show the documentation after a delay.
-        documentation = { auto_show = true, auto_show_delay_ms = 500 },
+        documentation = { auto_show = false, auto_show_delay_ms = 500 },
       },
 
       sources = {
@@ -943,87 +872,63 @@ require('lazy').setup({
     },
   },
 
-  -- Markdown
-  {
-    'MeanderingProgrammer/render-markdown.nvim',
-    dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-mini/mini.nvim' }, -- if you use the mini.nvim suite
-    -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-mini/mini.icons' },        -- if you use standalone mini plugins
-    -- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-tree/nvim-web-devicons' }, -- if you prefer nvim-web-devicons
-    ---@module 'render-markdown'
-    ---@type render.md.UserConfig
-    opts = {},
-  },
-
-  { -- Colorscheme: tokyonight with dynamic theme support
-    -- Theme colors are loaded from ~/.config/nvim/lua/active_theme.lua
-    -- which is set by ~/.config/themes/switch-theme.sh
+  { -- Colorschemes
     'folke/tokyonight.nvim',
-    priority = 1000, -- Make sure to load this before all the other start plugins.
+    priority = 1000,
+  },
+  {
+    'catppuccin/nvim',
+    name = 'catppuccin',
+    priority = 1000,
+  },
+  {
+    -- Theme loader: reads ~/.config/nvim/lua/custom/theme.lua and applies
+    dir = vim.fn.stdpath 'config',
+    name = 'theme-loader',
+    priority = 999,
     config = function()
-      -- Load the active theme (set by switch-theme.sh)
-      -- Falls back to purple-pink-dark from the themes directory
-      local ok, theme = pcall(require, 'active_theme')
-      if not ok then
-        local fallback = vim.fn.expand '~/.config/themes/purple-pink-dark/nvim_colors.lua'
-        if vim.fn.filereadable(fallback) == 1 then
-          theme = dofile(fallback)
-        else
-          theme = { mode = 'dark', colors = {}, highlights = {} }
-        end
+      -- Load theme file
+      local theme_file = vim.fn.expand '~/.config/nvim/lua/custom/theme.lua'
+      if vim.fn.filereadable(theme_file) == 1 then
+        dofile(theme_file)
       end
 
-      -- Mutable container so on_colors/on_highlights callbacks always see the current theme
-      local current = { theme = theme }
-      vim.g.theme_mode = theme.mode
-
-      ---@diagnostic disable-next-line: missing-fields
-      require('tokyonight').setup {
-        style = 'night',
-        styles = {
-          comments = { italic = false },
-        },
-        on_colors = function(colors)
-          local tc = current.theme.colors
-          for k, v in pairs(tc) do
-            if k ~= 'git' and k ~= 'diff' then
-              colors[k] = v
-            end
-          end
-          if tc.git then colors.git = tc.git end
-          if tc.diff then colors.diff = tc.diff end
-        end,
-        on_highlights = function(hl, c)
-          for k, v in pairs(current.theme.highlights) do
-            hl[k] = v
-          end
-        end,
+      -- Configure tokyonight with custom colors if set
+      local tokyonight_opts = {
+        styles = { comments = { italic = false } },
       }
 
-      -- Toggle between dark and light mode: <leader>tl
-      vim.keymap.set('n', '<leader>tl', function()
-        local alt_ok, alt = pcall(require, 'active_theme_alt')
-        if not alt_ok then
-          vim.notify('No alternate theme available (run switch-theme.sh first)', vim.log.levels.WARN)
-          return
+      if vim.g.theme_custom_colors then
+        local c = vim.g.theme_custom_colors
+        tokyonight_opts.on_colors = function(colors)
+          colors.bg = c.bg_dark
+          colors.bg_dark = c.bg_dark
+          colors.bg_float = c.bg
+          colors.bg_highlight = c.bg_light
+          colors.bg_popup = c.bg
+          colors.bg_sidebar = c.bg_dark
+          colors.bg_statusline = c.bg
+          colors.bg_visual = c.bg_light
+          colors.blue = c.accent
+          colors.cyan = c.info
+          colors.fg = c.fg
+          colors.fg_dark = c.fg_dim
+          colors.fg_gutter = c.fg_dim
+          colors.green = c.accent2
+          colors.magenta = c.purple
+          colors.orange = c.orange
+          colors.purple = c.purple
+          colors.red = c.error
+          colors.yellow = c.warn
+          colors.border = c.border
+          colors.comment = c.fg_dim
         end
-        -- Swap active and alt in the module cache for next toggle
-        package.loaded['active_theme'], package.loaded['active_theme_alt'] =
-          package.loaded['active_theme_alt'], package.loaded['active_theme']
-        current.theme = alt
-        vim.g.theme_mode = alt.mode
-        if alt.mode == 'light' then
-          vim.cmd.colorscheme 'tokyonight-day'
-        else
-          vim.cmd.colorscheme 'tokyonight-night'
-        end
-      end, { desc = '[T]oggle [L]ight/Dark mode' })
-
-      -- Set initial colorscheme based on theme mode
-      if theme.mode == 'light' then
-        vim.cmd.colorscheme 'tokyonight-day'
-      else
-        vim.cmd.colorscheme 'tokyonight-night'
       end
+
+      require('tokyonight').setup(tokyonight_opts)
+      require('catppuccin').setup { no_italic = true }
+
+      vim.cmd.colorscheme(vim.g.theme_colorscheme or 'tokyonight-night')
     end,
   },
 
@@ -1070,27 +975,14 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
-    main = 'nvim-treesitter.configs', -- Sets main module to use for opts
+    main = 'nvim-treesitter.config', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
       ensure_installed = {
-        'bash',
-        'c',
-        'cpp',
-        'diff',
-        'html',
-        'javascript',
-        'jsonc',
-        'lua',
-        'luadoc',
-        'markdown',
-        'markdown_inline',
-        'python',
-        'query',
-        'tsx',
-        'typescript',
-        'vim',
-        'vimdoc',
+        'astro', 'bash', 'c', 'cmake', 'cpp', 'c_sharp', 'css', 'diff', 'gdscript',
+        'godot_resource', 'html', 'javascript', 'json', 'lua', 'luadoc', 'markdown',
+        'markdown_inline', 'python', 'query', 'ruby', 'rust', 'toml', 'tsx', 'typescript',
+        'vim', 'vimdoc', 'yaml',
       },
       -- Autoinstall languages that are not installed
       auto_install = true,
@@ -1111,58 +1003,6 @@ require('lazy').setup({
     --    - Treesitter + textobjects: https://github.com/nvim-treesitter/nvim-treesitter-textobjects
   },
 
-  { -- Syntactic text objects (af/if function, ac/ic class, aa/ia argument, etc.)
-    'nvim-treesitter/nvim-treesitter-textobjects',
-    dependencies = { 'nvim-treesitter/nvim-treesitter' },
-    config = function()
-      require('nvim-treesitter.configs').setup {
-        textobjects = {
-          select = {
-            enable = true,
-            lookahead = true,
-            keymaps = {
-              ['af'] = '@function.outer',
-              ['if'] = '@function.inner',
-              ['ac'] = '@class.outer',
-              ['ic'] = '@class.inner',
-              ['aa'] = '@parameter.outer',
-              ['ia'] = '@parameter.inner',
-              ['ai'] = '@conditional.outer',
-              ['ii'] = '@conditional.inner',
-              ['al'] = '@loop.outer',
-              ['il'] = '@loop.inner',
-            },
-          },
-          move = {
-            enable = true,
-            set_jumps = true,
-            goto_next_start = {
-              [']m'] = '@function.outer',
-              [']]'] = '@class.outer',
-            },
-            goto_next_end = {
-              [']M'] = '@function.outer',
-              [']['] = '@class.outer',
-            },
-            goto_previous_start = {
-              ['[m'] = '@function.outer',
-              ['[['] = '@class.outer',
-            },
-            goto_previous_end = {
-              ['[M'] = '@function.outer',
-              ['[]'] = '@class.outer',
-            },
-          },
-          swap = {
-            enable = true,
-            swap_next = { ['<leader>sn'] = '@parameter.inner' },
-            swap_previous = { ['<leader>sp'] = '@parameter.inner' },
-          },
-        },
-      }
-    end,
-  },
-
   -- The following comments only work if you have downloaded the kickstart repo, not just copy pasted the
   -- init.lua. If you want these files, they are in the repository, so you can just download them and
   -- place them in the correct locations.
@@ -1172,17 +1012,41 @@ require('lazy').setup({
   --  Here are some example plugins that I've included in the Kickstart repository.
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
-  -- require 'kickstart.plugins.debug',
+  require 'kickstart.plugins.debug',
   require 'kickstart.plugins.indent_line',
   require 'kickstart.plugins.lint',
   require 'kickstart.plugins.autopairs',
   require 'kickstart.plugins.neo-tree',
   require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
-  -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
-  --    This is the easiest way to modularize your config.
-  --
-  --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
+  -- TODO comments: highlight and search TODO/FIXME/HACK/NOTE
+  {
+    'folke/todo-comments.nvim',
+    event = 'VimEnter',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    opts = { signs = false },
+  },
+
+  -- Trouble: diagnostics panel (like JetBrains problems panel)
+  {
+    'folke/trouble.nvim',
+    cmd = 'Trouble',
+    keys = {
+      { '<leader>xx', '<cmd>Trouble diagnostics toggle<cr>', desc = 'Diagnostics (Trouble)' },
+      { '<leader>xX', '<cmd>Trouble diagnostics toggle filter.buf=0<cr>', desc = 'Buffer Diagnostics (Trouble)' },
+      { '<leader>xs', '<cmd>Trouble symbols toggle<cr>', desc = 'Symbols (Trouble)' },
+    },
+    opts = {},
+  },
+
+  -- Surround: add/change/delete surrounding brackets, quotes, tags
+  {
+    'kylechui/nvim-surround',
+    version = '3.*',
+    event = 'VeryLazy',
+    opts = {},
+  },
+
   { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
@@ -1213,4 +1077,3 @@ require('lazy').setup({
 
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
---
