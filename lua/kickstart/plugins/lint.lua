@@ -9,6 +9,11 @@ return {
         markdown = { 'markdownlint' },
       }
 
+      local global_md_config = vim.fn.expand('~/.markdownlint.jsonc')
+      if vim.uv.fs_stat(global_md_config) then
+        lint.linters.markdownlint.args = { '--config', global_md_config, '--stdin' }
+      end
+
       -- To allow other plugins to add linters to require('lint').linters_by_ft,
       -- instead set linters_by_ft like this:
       -- lint.linters_by_ft = lint.linters_by_ft or {}
