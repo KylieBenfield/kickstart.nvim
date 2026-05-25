@@ -21,7 +21,7 @@ return {
             end
             local out = vim.fn.fnamemodify(src, ':r') .. '.pdf'
             vim.system(
-              { 'afterwriting', '--source', src, '--pdf', out, '--overwrite' },
+              { 'afterwriting', '--source', src, '--pdf', out, '--overwrite', '--setting', 'print_profile=usletter' },
               { text = true },
               vim.schedule_wrap(function(res)
                 if res.code == 0 then
